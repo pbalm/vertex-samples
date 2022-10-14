@@ -31,6 +31,7 @@ sh <- function(cmd, args = c(), intern = FALSE) {
   if (intern) return(ret) else cat(paste(ret, collapse = "\n"))
 }
 
+
 #sh("pip install --user --upgrade google-cloud-aiplatform")
 
 # Create staging bucket (only do this once)
@@ -42,4 +43,64 @@ use_python(Sys.which("python3"))
 
 aiplatform <- import("google.cloud.aiplatform")
 aiplatform$init(project = PROJECT_ID, location = REGION, staging_bucket = BUCKET_URI)
+
+# TODO: Base image is in US, can be incompatible with resource constraint
+sh("gcloud builds submit --region={REGION} --tag={IMAGE_URI} --timeout=1h")
+
+# Create Vertex AI Managed Dataset
+data_uri <- "gs://cloud-samples-data/ai-platform-unified/datasets/tabular/california-housing-tabular-regression.csv"
+dataset <- aiplatform$TabularDataset$create(
+  display_name = "California Housing Dataset",
+  gcs_source = data_uri
+)
+
+# Create the training job
+job <- aiplatform$CustomContainerTrainingJob(
+  display_name = "vertex-r",
+  container_uri = IMAGE_URI,
+  command = c("Rscript", "train.R"),
+  model_serving_container_command = c("Rscript", "serve.R"),
+  model_serving_container_image_uri = IMAGE_URI
+)
+
+# And run it - train the model
+model <- job$run(
+  dataset=dataset,
+  model_display_name = "vertex-r-model",
+  machine_type = "n1-standard-4"
+)
+
+# Create an endpoint
+endpoint <- aiplatform$Endpoint$create(
+  display_name = "California Housing Endpoint",
+  project = PROJECT_ID,
+  location = REGION
+)
+
+# Deploy the model
+model$deploy(endpoint = endpoint, machine_type = "n1-standard-4")
+
+# Test the model endpoint using the first 5 rows from the training dataset
+library(jsonlite)
+df <- read.csv(text=sh("gsutil cat {data_uri}", intern = TRUE))
+head(df, 5)
+
+instances <- list(instances=head(df[, names(df) != "median_house_value"], 5))
+instances
+
+json_instances <- toJSON(instances)
+url <- glue("https://{REGION}-aiplatform.googleapis.com/v1/{endpoint$resource_name}:predict")
+access_token <- sh("gcloud auth print-access-token", intern = TRUE)
+
+sh(
+  "curl",
+  c("--tr-encoding",
+    "-s",
+    "-X POST",
+    glue("-H 'Authorization: Bearer {access_token}'"),
+    "-H 'Content-Type: application/json'",
+    url,
+    glue("-d {json_instances}")
+  ),
+)
 
