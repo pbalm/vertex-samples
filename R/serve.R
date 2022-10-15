@@ -1,22 +1,32 @@
 #!/usr/bin/env Rscript
 # filename: serve.R - serve predictions from a Random Forest model
 Sys.getenv()
+
 library(plumber)
+library(randomForest)
+library(jsonlite)
 
 system2("gsutil", c("cp", "-r", Sys.getenv("AIP_STORAGE_URI"), "."))
 system("du -a .")
 
 rf <- readRDS("artifacts/rf.rds")
-library(randomForest)
 
 predict_route <- function(req, res) {
   print("Handling prediction request")
   df <- as.data.frame(req$body$instances)
+  print("--- instances")
+  print(head(df, 5)) # debug output
   preds <- predict(rf, df)
-  return(list(predictions=preds))
+  print("--- predictions")
+  print(head(preds, 5))
+  return( toJSON(list(predictions=preds)))
 }
 
-print("Staring Serving")
+print("Starting Serving")
+print(rf)
+
+print("Predict route is " + Sys.getenv("AIP_PREDICT_ROUTE"))
+print("Running on port " + as.integer(Sys.getenv("AIP_HTTP_PORT", 8080)))
 
 pr() %>%
   pr_get(Sys.getenv("AIP_HEALTH_ROUTE"), function() "OK") %>%
