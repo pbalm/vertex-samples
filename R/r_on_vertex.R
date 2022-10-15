@@ -2,6 +2,10 @@
 
 library(glue)
 library(IRdisplay)
+library(reticulate)
+library(glue)
+
+use_python(Sys.which("python3"))
 
 # Cloud blog: "Use R to train and deploy machine learning models on Vertex AI"
 #
@@ -37,9 +41,6 @@ sh <- function(cmd, args = c(), intern = FALSE) {
 # Create staging bucket (only do this once)
 #sh("gsutil mb -l {REGION} -p {PROJECT_ID} {BUCKET_URI}")
 
-library(reticulate)
-library(glue)
-use_python(Sys.which("python3"))
 
 aiplatform <- import("google.cloud.aiplatform")
 aiplatform$init(project = PROJECT_ID, location = REGION, staging_bucket = BUCKET_URI)
@@ -72,7 +73,7 @@ model <- job$run(
 
 # Create an endpoint
 endpoint <- aiplatform$Endpoint$create(
-  display_name = "California Housing Endpoint",
+  display_name = "California Housing Endpoint 3",
   project = PROJECT_ID,
   location = REGION
 )
@@ -89,6 +90,8 @@ instances <- list(instances=head(df[, names(df) != "median_house_value"], 5))
 instances
 
 json_instances <- toJSON(instances)
+# {"instances":[{"longitude":-122.23,"latitude":37.88,"housing_median_age":41,"total_rooms":880,"total_bedrooms":129,"population":322,"households":126,"median_income":8.3252},{"longitude":-122.22,"latitude":37.86,"housing_median_age":21,"total_rooms":7099,"total_bedrooms":1106,"population":2401,"households":1138,"median_income":8.3014},{"longitude":-122.24,"latitude":37.85,"housing_median_age":52,"total_rooms":1467,"total_bedrooms":190,"population":496,"households":177,"median_income":7.2574},{"longitude":-122.25,"latitude":37.85,"housing_median_age":52,"total_rooms":1274,"total_bedrooms":235,"population":558,"households":219,"median_income":5.6431},{"longitude":-122.25,"latitude":37.85,"housing_median_age":52,"total_rooms":1627,"total_bedrooms":280,"population":565,"households":259,"median_income":3.8462}]}
+
 url <- glue("https://{REGION}-aiplatform.googleapis.com/v1/{endpoint$resource_name}:predict")
 access_token <- sh("gcloud auth print-access-token", intern = TRUE)
 
@@ -104,3 +107,15 @@ sh(
   ),
 )
 
+
+
+# Upload to Model Registry
+gcs_model_loc="gs://cxb1-prj-test-no-vpcsc-vertex-r/aiplatform-custom-training-2022-10-14-13:52:14.024/model"
+
+uploaded_model = aiplatform$Model$upload(
+                        display_name="Housing Prices",
+                        model_id="housing_prices",
+                        is_default_version=T,
+                        serving_container_image_uri=IMAGE_URI,
+                        serving_container_command = c("Rscript", "serve.R"),
+                        artifact_uri=gcs_model_loc)
