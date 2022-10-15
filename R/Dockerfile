@@ -13,5 +13,6 @@ RUN apt-get install gfortran -yy
 # Install R packages
 RUN Rscript -e "install.packages('plumber')"
 RUN Rscript -e "install.packages('randomForest')"
+RUN Rscript -e "install.packages('jsonlite')"
 
 EXPOSE 8080
