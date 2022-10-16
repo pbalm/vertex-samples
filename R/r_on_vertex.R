@@ -1,9 +1,11 @@
-#install.packages(c("reticulate", "glue"))
+#install.packages(c("reticulate", "glue", "IRdisplay"), "~/Rlib")
 
 library(glue)
 library(IRdisplay)
 library(reticulate)
 library(glue)
+library(jsonlite)
+
 
 use_python(Sys.which("python3"))
 
@@ -73,7 +75,7 @@ model <- job$run(
 
 # Create an endpoint
 endpoint <- aiplatform$Endpoint$create(
-  display_name = "California Housing Endpoint 3",
+  display_name = "California Housing Endpoint 4",
   project = PROJECT_ID,
   location = REGION
 )
@@ -82,7 +84,6 @@ endpoint <- aiplatform$Endpoint$create(
 model$deploy(endpoint = endpoint, machine_type = "n1-standard-4")
 
 # Test the model endpoint using the first 5 rows from the training dataset
-library(jsonlite)
 df <- read.csv(text=sh("gsutil cat {data_uri}", intern = TRUE))
 head(df, 5)
 
@@ -92,7 +93,10 @@ instances
 json_instances <- toJSON(instances)
 # {"instances":[{"longitude":-122.23,"latitude":37.88,"housing_median_age":41,"total_rooms":880,"total_bedrooms":129,"population":322,"households":126,"median_income":8.3252},{"longitude":-122.22,"latitude":37.86,"housing_median_age":21,"total_rooms":7099,"total_bedrooms":1106,"population":2401,"households":1138,"median_income":8.3014},{"longitude":-122.24,"latitude":37.85,"housing_median_age":52,"total_rooms":1467,"total_bedrooms":190,"population":496,"households":177,"median_income":7.2574},{"longitude":-122.25,"latitude":37.85,"housing_median_age":52,"total_rooms":1274,"total_bedrooms":235,"population":558,"households":219,"median_income":5.6431},{"longitude":-122.25,"latitude":37.85,"housing_median_age":52,"total_rooms":1627,"total_bedrooms":280,"population":565,"households":259,"median_income":3.8462}]}
 
-url <- glue("https://{REGION}-aiplatform.googleapis.com/v1/{endpoint$resource_name}:predict")
+ENDPOINT_ID=endpoint$resource_name
+ENDPOINT_ID="projects/cxb1-prj-test-no-vpcsc/locations/europe-west1/endpoints/7732557414892830720"
+
+url <- glue("https://{REGION}-aiplatform.googleapis.com/v1/{ENDPOINT_ID}:predict")
 access_token <- sh("gcloud auth print-access-token", intern = TRUE)
 
 sh(
@@ -107,15 +111,28 @@ sh(
   ),
 )
 
-
+# Example:
+#
+# TOKEN=$(gcloud auth print-access-token)
+# curl -X POST -H "Authorization: Bearer $TOKEN" \
+# -H "Content-Type: application/json" \
+# https://europe-west1-aiplatform.googleapis.com/v1/projects/cxb1-prj-test-no-vpcsc/locations/europe-west1/endpoints/7732557414892830720:predict \
+# -d '{"instances":[{"longitude":-122.23,"latitude":37.88,"housing_median_age":41,"total_rooms":880,"total_bedrooms":129,"population":322,"households":126,"median_income":8.3252},{"longitude":-122.22,"latitude":37.86,"housing_median_age":21,"total_rooms":7099,"total_bedrooms":1106,"population":2401,"households":1138,"median_income":8.3014},{"longitude":-122.24,"latitude":37.85,"housing_median_age":52,"total_rooms":1467,"total_bedrooms":190,"population":496,"households":177,"median_income":7.2574},{"longitude":-122.25,"latitude":37.85,"housing_median_age":52,"total_rooms":1274,"total_bedrooms":235,"population":558,"households":219,"median_income":5.6431},{"longitude":-122.25,"latitude":37.85,"housing_median_age":52,"total_rooms":1627,"total_bedrooms":280,"population":565,"households":259,"median_income":3.8462}]}'
 
 # Upload to Model Registry
 gcs_model_loc="gs://cxb1-prj-test-no-vpcsc-vertex-r/aiplatform-custom-training-2022-10-14-13:52:14.024/model"
 
+# * upload the first version with model_id="housing_prices" and subsequent versions with parent_model="housing_prices"
+# * the container image, unless modified, start a JypyterLab instance on start-up. We use the serving container command
+#   to make it start up a web service that serves predictions.
+# * specify the predict and health routes (path in the URL to make predictions and call the heartbeat service) for the
+#   batch predictions. The Endpoint will generate default routes but the Batch Prediction does not.
 uploaded_model = aiplatform$Model$upload(
                         display_name="Housing Prices",
-                        model_id="housing_prices",
+                        parent_model="housing_prices", 
                         is_default_version=T,
                         serving_container_image_uri=IMAGE_URI,
                         serving_container_command = c("Rscript", "serve.R"),
+                        serving_container_predict_route="/predict",
+                        serving_container_health_route="/health",
                         artifact_uri=gcs_model_loc)
