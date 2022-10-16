@@ -19,14 +19,14 @@ predict_route <- function(req, res) {
   preds <- predict(rf, df)
   print("--- predictions")
   print(head(preds, 5))
-  return( toJSON(list(predictions=preds)))
+  return(list(predictions=preds))
 }
 
 print("Starting Serving")
 print(rf)
 
-print("Predict route is " + Sys.getenv("AIP_PREDICT_ROUTE"))
-print("Running on port " + as.integer(Sys.getenv("AIP_HTTP_PORT", 8080)))
+print(paste("Predict route is ", Sys.getenv("AIP_PREDICT_ROUTE")))
+print(paste("Running on port ", as.integer(Sys.getenv("AIP_HTTP_PORT", 8080))))
 
 pr() %>%
   pr_get(Sys.getenv("AIP_HEALTH_ROUTE"), function() "OK") %>%
