@@ -35,11 +35,16 @@ predict_route <- function(req, res) {
   #json_data = req$body$instances
   #print(json_data)
   #df <- as.data.frame(json_data)
-  print("--- instances")
-  print(head(df, 5)) # debug output
+  #print("--- instances")
+  #print(head(df, 5)) # debug output
   preds <- predict(rf, df)
-  print("--- predictions")
-  print(head(preds, 5))
+  #print("--- predictions")
+  #print(head(preds, 5))
+  
+  
+  #res$setHeader("Content-Length", 999)
+  print(res$headers)
+  
   return(list(predictions=preds))
 }
 
@@ -47,6 +52,6 @@ print("Starting Serving")
 
 pr() %>%
   pr_get("/health", function() "OK") %>%
-  pr_post("/predict", predict_route) %>%
+  pr_post("/predict", predict_route_dbg) %>%
   pr_run(host = "0.0.0.0", port=8080)
 
