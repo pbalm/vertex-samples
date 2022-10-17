@@ -6,6 +6,7 @@ library(plumber)
 library(randomForest)
 library(jsonlite)
 
+print(paste("Getting model from", Sys.getenv("AIP_STORAGE_URI")))
 system2("gsutil", c("cp", "-r", Sys.getenv("AIP_STORAGE_URI"), "."))
 system("du -a .")
 
