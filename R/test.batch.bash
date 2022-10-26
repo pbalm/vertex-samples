@@ -1,13 +1,21 @@
 #!/bin/bash -x
-export LOCATION=us-central1
+
+# Put this script in an empty directory with the name "test.[INDEX]" and replace [INDEX] with the name of your test
+# run so you can easily find it in the GCP Console.
+# For example, the directory could be "test.001-first-test" and the container, the model and the batch prediction
+# job will have "001-first-test" in the name.
+
+INDEX=$(echo $(basename $(pwd)) | cut -d. -f2-)
+
+export LOCATION=europe-west1
 export PROJECT_ID=$(gcloud config list --format 'value(core.project)')
-export REPO_NAME=vertex-custom-68274
-export IMAGE_NAME=vertex-custom-29680
-export MODEL_NAME=test-model-39476
-export BATCH_JOB_NAME=test-batch-prediction-86390
+export REPO_NAME=vertex-custom-$INDEX
+export IMAGE_NAME=vertex-custom-$INDEX
+export MODEL_NAME=test-model-$INDEX
+export BATCH_JOB_NAME=test-batch-prediction-$INDEX
 export IMAGE_TAG=latest
 export IMAGE_URI=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}
-export BUCKET=${PROJECT_ID}-vertex-r-24765
+export BUCKET=${PROJECT_ID}-vertex-r-$INDEX
 
 cat << EOF > Dockerfile
 FROM rocker/tidyverse:4.1
@@ -49,23 +57,24 @@ gcloud artifacts repositories create ${REPO_NAME} \
     --repository-format=docker \
     --location=${LOCATION}
 
-#gcloud auth configure-docker ${LOCATION}-docker.pkg.dev
-
 gsutil mb -l ${LOCATION} gs://${BUCKET}
 echo 42 > model.txt
 gsutil cp model.txt gs://${BUCKET}/model/model.txt
 
-#docker build -f Dockerfile -t ${IMAGE_URI} ./
-#docker push ${IMAGE_URI}
-gcloud builds submit --region=$LOCATION --tag=$IMAGE_URI --timeout=1h
+gcloud builds submit --region=$LOCATION --tag=$IMAGE_URI --timeout=1h  --gcs-log-dir=gs://$BUCKET --project=${PROJECT_ID}
+
+echo Uploading version 1 of model
 
 gcloud ai models upload \
     --region=${LOCATION} \
     --display-name=${MODEL_NAME} \
+    --model-id=${MODEL_NAME} \
     --container-image-uri=${IMAGE_URI} \
     --artifact-uri=gs://${BUCKET}/model/ \
     --container-health-route=/health \
-    --container-predict-route=/predict
+    --container-predict-route=/predict \
+    --container-command=Rscript \
+    --container-args=/root/serve.R
 
 export MODEL_ID=$(gcloud ai models list --region=${LOCATION} --filter=display_name=${MODEL_NAME} --format='value(name)' | head -n1)
 
@@ -116,16 +125,22 @@ cat << EOF > batch_pred_req.json
 }
 EOF
 
-submit_result = $(curl -X POST \
+# Create the Batch Prediction job
+submit_result=$(curl -X POST \
     -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
     -H "Content-Type: application/json; charset=utf-8" \
     -d @batch_pred_req.json \
     "https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/batchPredictionJobs")
 
 
+# The work is done now, now we're just going to wait for the job to finish and get the results.
+
 #
 # Poll for job to finish
 #
+
+# first wait a bit
+sleep 300
 
 # extract job name from submit_result
 JOB_NAME=$(echo $submit_result | grep name | cut -d\" -f4)
