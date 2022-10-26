@@ -144,7 +144,7 @@ sleep 300
 
 # extract job name from submit_result
 JOB_NAME=$(echo $submit_result | grep name | cut -d\" -f4)
-job_info=$(curl -X GET -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" https://us-central1-aiplatform.googleapis.com/v1/$JOB_NAME)
+job_info=$(curl -X GET -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" https://${LOCATION}-aiplatform.googleapis.com/v1/$JOB_NAME)
 
 # poll for job to complete
 while [[ "$(echo $job_info | grep state)" == *"JOB_STATE_SUCCEEDED"* ]]; 
@@ -153,7 +153,7 @@ do
   echo $job_info | grep state
   echo 
   sleep 300
-  job_info=$(curl -X GET -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" https://us-central1-aiplatform.googleapis.com/v1/$JOB_NAME)
+  job_info=$(curl -X GET -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" https://${LOCATION}-aiplatform.googleapis.com/v1/$JOB_NAME)
 done
 
 #
