@@ -18,7 +18,7 @@ REGION <- "europe-west1"
 BUCKET_URI <- glue("gs://{PROJECT_ID}-vertex-r")
 
 DOCKER_REPO <- "vertex-r"
-IMAGE_NAME <- "vertex-r"
+IMAGE_NAME <- "vertex-r-billingproj-logs"
 IMAGE_TAG <- "latest"
 IMAGE_URI <- glue("{REGION}-docker.pkg.dev/{PROJECT_ID}/{DOCKER_REPO}/{IMAGE_NAME}:{IMAGE_TAG}")
 
@@ -48,7 +48,7 @@ aiplatform <- import("google.cloud.aiplatform")
 aiplatform$init(project = PROJECT_ID, location = REGION, staging_bucket = BUCKET_URI)
 
 # TODO: Base image is in US, can be incompatible with resource constraint
-sh("gcloud builds submit --region={REGION} --tag={IMAGE_URI} --timeout=1h")
+sh("gcloud builds submit --region={REGION} --tag={IMAGE_URI} --timeout=1h --billing-project={PROJECT_ID} --project={PROJECT_ID} --gcs-log-dir={BUCKET_URI}")
 
 # Create Vertex AI Managed Dataset
 data_uri <- "gs://cloud-samples-data/ai-platform-unified/datasets/tabular/california-housing-tabular-regression.csv"
@@ -121,18 +121,37 @@ sh(
 
 # Upload to Model Registry
 gcs_model_loc="gs://cxb1-prj-test-no-vpcsc-vertex-r/aiplatform-custom-training-2022-10-14-13:52:14.024/model"
+#gs://cxb1-prj-test-no-vpcsc-vertex-r-010-new-model-version/model
 
 # * upload the first version with model_id="housing_prices" and subsequent versions with parent_model="housing_prices"
 # * the container image, unless modified, start a JypyterLab instance on start-up. We use the serving container command
 #   to make it start up a web service that serves predictions.
 # * specify the predict and health routes (path in the URL to make predictions and call the heartbeat service) for the
 #   batch predictions. The Endpoint will generate default routes but the Batch Prediction does not.
-uploaded_model = aiplatform$Model$upload(
-                        display_name="Housing Prices",
-                        parent_model="housing_prices", 
-                        is_default_version=T,
-                        serving_container_image_uri=IMAGE_URI,
-                        serving_container_command = c("Rscript", "serve.R"),
-                        serving_container_predict_route="/predict",
-                        serving_container_health_route="/health",
-                        artifact_uri=gcs_model_loc)
+
+# This command doesn't work because I can't get it to interpret the serving command and args correctly.
+# It will read a string as a list of chars that are each their own command or arg.
+# The below example will make it look ok but it still doesn't work.
+
+# uploaded_model = aiplatform$Model$upload(
+#                         display_name="Housing Prices",
+#                         parent_model="housing_prices", 
+#                         is_default_version=T,
+#                         serving_container_image_uri=IMAGE_URI,
+#                         serving_container_command=c("Rscript", " "),
+#                         serving_container_args=c("/root/serve.R", " "),
+#                         serving_container_predict_route="/predict",
+#                         serving_container_health_route="/health",
+#                         artifact_uri=gcs_model_loc)
+
+MODEL_NAME="Housing Prices"
+
+sh(paste("gcloud ai models upload",
+    "--region={REGION}",
+    "--display-name=housing_prices_7_billingproj_logs",
+    "--container-image-uri={IMAGE_URI}",
+    paste0("--artifact-uri=", gcs_model_loc),
+    "--container-health-route=/health",
+    "--container-predict-route=/predict",
+    "--container-command=Rscript",
+    "--container-args=/root/serve.R"))
