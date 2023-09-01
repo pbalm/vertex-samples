@@ -51,6 +51,10 @@ Execute the script `bq_setup.bash`.
 The Cloud Function is implemented in `cloudfunction/main.py` for the user to
 customize to their business need.
 
+In this `main.py` file, set the BigQuery project, dataset and table name
+that the Cloud Function should write to. This should be the table that you
+have created in the previous step.
+
 Run the script `deploy_cloud_function.bash` from the `cloudfunction`
 directory:
 

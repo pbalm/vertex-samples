@@ -10,9 +10,9 @@ import json
 import functions_framework
 
 
-BQ_OUTPUT_PROJECT = 'pbalm-cxb-aa'
-BQ_OUTPUT_DS = 'modelstore'
-BQ_OUTPUT_TABLE = 'pipelines'
+BQ_OUTPUT_PROJECT = 'my-central-project'
+BQ_OUTPUT_DS = 'my-central-dataset'
+BQ_OUTPUT_TABLE = 'my-table'
 
 log = logging.getLogger()
 log.addHandler(logging.StreamHandler())
