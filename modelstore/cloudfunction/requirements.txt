@@ -1,0 +1,6 @@
+db-dtypes
+functions-framework==3.*
+google-cloud-aiplatform==1.22.0
+pandas
+pandas-gbq
+google-cloud-bigquery-storage==2.19.1

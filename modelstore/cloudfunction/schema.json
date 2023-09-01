@@ -1,0 +1,73 @@
+[
+    {
+        "name": "name",
+        "type": "string",
+        "mode": "required",
+        "description": "Pipeline display name"
+    },
+    {
+        "name": "run",
+        "type": "string",
+        "mode": "required",
+        "description": "Pipeline run name"
+    },
+    {
+        "name": "resource_name",
+        "type": "string",
+        "mode": "required",
+        "description": "Fully qualified pipeline resource name"
+    },
+    {
+        "name": "url",
+        "type": "string",
+        "mode": "required",
+        "description": "Pipeline run URL in Vertex AI Pipelines UI"
+    },
+    {
+        "name": "project",
+        "type": "string",
+        "mode": "required",
+        "description": "Project that the pipeline ran in"
+    },
+    {
+        "name": "region",
+        "type": "string",
+        "mode": "required",
+        "description": "Region that the pipeline ran in"
+    },
+    {
+        "name": "create_time",
+        "type": "datetime",
+        "mode": "required",
+        "description": "Creation time of the pipeline"
+    },
+    {
+        "name": "update_time",
+        "type": "datetime",
+        "mode": "required",
+        "description": "Last recorded update time of the pipeline"
+    },
+    {
+        "name": "labels",
+        "type": "string",
+        "description": "Pipeline labels"
+    },
+    {
+        "name": "state",
+        "type": "string",
+        "mode": "required",
+        "description": "Pipeline exit state"
+    },
+    {
+        "name": "metrics",
+        "type": "string",
+        "mode": "repeated",
+        "description": "Reported model metrics"
+    },
+    {
+        "name": "framework",
+        "type": "string",
+        "mode": "repeated",
+        "description": "Report model framework"
+    }
+]
