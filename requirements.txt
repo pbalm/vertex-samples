@@ -3,3 +3,4 @@ kfp==1.8.9
 google-cloud-pipeline-components==0.2.0
 statsmodels
 tensorflow-io==0.25.0
+google-cloud-bigquery
